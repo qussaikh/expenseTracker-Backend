@@ -12,4 +12,6 @@ public interface AuthService {
     String registerAdmin(RegisterDto registerDto);
 
     JwtAuthResponse login(LoginDto loginDto);
+
+    Long getUserIdByUsernameOrEmail(String usernameOrEmail);
 }

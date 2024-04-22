@@ -126,4 +126,12 @@ public class AuthServiceImpl implements AuthService {
         jwtAuthResponse.setAccessToken(token);
         return jwtAuthResponse;
     }
+
+    public Long getUserIdByUsernameOrEmail(String usernameOrEmail) {
+        Optional<User> userOptional = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail);
+        if (!userOptional.isPresent()) {
+            throw new ExpenseAPIException(HttpStatus.NOT_FOUND, "User not found!");
+        }
+        return userOptional.get().getId(); // Assuming getId() returns a Long
+    }
 }

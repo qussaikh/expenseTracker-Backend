@@ -7,15 +7,15 @@ import com.qussai.expenseTracker.exception.ResourceNotFoundException;
 import com.qussai.expenseTracker.repository.ExpenseRepository;
 import com.qussai.expenseTracker.repository.UserRepository;
 import com.qussai.expenseTracker.service.ExpenseService;
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service
 @AllArgsConstructor
@@ -25,20 +25,27 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     private UserRepository userRepository;
 
-    @Transactional
-    public Expense saveExpense(String username, Expense expense) {
-        User user = userRepository.findByUsername(username); // Find the logged-in user by username
-        if (user == null) {
-            throw new RuntimeException("User not found");
-        }
-        expense.setUser(user); // Set the user for the expense
-        return expenseRepository.save(expense); // Save the expense
+    public Expense saveExpense(Expense expense) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName(); // Hämtar det inloggade användarnamnet
+
+        User user = userRepository.findByUsername(username);
+
+        expense.setUser(user);
+        return expenseRepository.save(expense);
     }
 
 
     @Override
     public ExpenseDto addExpense(ExpenseDto expenseDto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName(); // Hämtar det inloggade användarnamnet
+
+        User user = userRepository.findByUsername(username);
+
+
         Expense expense = new Expense();
+        expense.setUser(user);
         expense.setTitle(expenseDto.getTitle());
         expense.setDescription(expenseDto.getDescription());
         expense.setAmount(expenseDto.getAmount());
@@ -50,6 +57,7 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         ExpenseDto savedExpenseDto = new ExpenseDto();
         savedExpenseDto.setId(savedExpense.getId());
+        //savedExpenseDto.setUser(savedExpense.getUser());
         savedExpenseDto.setTitle(savedExpense.getTitle());
         savedExpenseDto.setDescription(savedExpense.getDescription());
         savedExpenseDto.setAmount(savedExpense.getAmount());
@@ -79,27 +87,26 @@ public class ExpenseServiceImpl implements ExpenseService {
         return expenseDto;
     }
 
+    public List<ExpenseDto> findAllExpensesForLoggedInUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
 
-    public List<Expense> findAll() {
-        return expenseRepository.findAll();
+        User user = userRepository.findByUsername(username);
+
+        return expenseRepository.findByUser(user).stream()
+                .map(expense -> {
+                    ExpenseDto expenseDto = new ExpenseDto();
+                    expenseDto.setId(expense.getId());
+                    expenseDto.setTitle(expense.getTitle());
+                    expenseDto.setDescription(expense.getDescription());
+                    expenseDto.setAmount(expense.getAmount());
+                    expenseDto.setDate(expense.getDate());
+                    expenseDto.setCreationDate(expense.getCreationDate());
+                    expenseDto.setCompleted(expense.isCompleted());
+                    return expenseDto;
+                }).collect(Collectors.toList());
     }
-    @Override
-    public List<ExpenseDto> getAllExpense() {
-        List<Expense> expenses = expenseRepository.findAll();
 
-
-        return expenses.stream().map(expense -> {
-            ExpenseDto expenseDto = new ExpenseDto();
-            expenseDto.setId(expense.getId());
-            expenseDto.setTitle(expense.getTitle());
-            expenseDto.setDescription(expense.getDescription());
-            expenseDto.setAmount(expenseDto.getAmount());
-            expenseDto.setDate(expenseDto.getDate());
-            expenseDto.setCreationDate(expenseDto.getCreationDate());
-            expenseDto.setCompleted(expense.isCompleted());
-            return expenseDto;
-        }).collect(Collectors.toList());
-    }
 
     @Override
     public ExpenseDto updateExpense(ExpenseDto expenseDto, Long id) {
